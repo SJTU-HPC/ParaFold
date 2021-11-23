@@ -4,7 +4,7 @@
 <img src="./figure/parafoldlogo.png" width="400" >
 </div>
 
-ParaFold == ParallelFold
+ParaFold == [ParallelFold](https://github.com/Zuricho/ParallelFold)
 
 Author: Bozitao Zhong :postbox:: zbztzhz@sjtu.edu.cn
 
