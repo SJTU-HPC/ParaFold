@@ -1,11 +1,10 @@
-# ParallelFold
+# ParaFold
 
 <div align=center>
 <img src="./figure/parafoldlogo.png" width="400" >
 </div>
 
-
-
+ParaFold == ParallelFold
 
 Author: Bozitao Zhong :postbox:: zbztzhz@sjtu.edu.cn
 
