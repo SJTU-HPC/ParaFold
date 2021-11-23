@@ -1,433 +1,240 @@
-![header](imgs/header.jpg)
+# ParallelFold
 
-# AlphaFold
+<div align=center>
+<img src="./figure/parafoldlogo.png" width="400" >
+</div>
 
-This package provides an implementation of the inference pipeline of AlphaFold
-v2.0. This is a completely new model that was entered in CASP14 and published in
-Nature. For simplicity, we refer to this model as AlphaFold throughout the rest
-of this document.
 
-Any publication that discloses findings arising from using this source code or
-the model parameters should [cite](#citing-this-work) the
-[AlphaFold paper](https://doi.org/10.1038/s41586-021-03819-2). Please also refer
-to the
-[Supplementary Information](https://static-content.springer.com/esm/art%3A10.1038%2Fs41586-021-03819-2/MediaObjects/41586_2021_3819_MOESM1_ESM.pdf)
-for a detailed description of the method.
 
-**You can use a slightly simplified version of AlphaFold with
-[this Colab
-notebook](https://colab.research.google.com/github/deepmind/alphafold/blob/main/notebooks/AlphaFold.ipynb)**
-or community-supported versions (see below).
 
-![CASP14 predictions](imgs/casp14_predictions.gif)
+Author: Bozitao Zhong :postbox:: zbztzhz@sjtu.edu.cn
 
-## First time setup
+:station: We are adding new functions to ParallelFold, you can see our [Roadmap](https://trello.com/b/sAqBIxBC/parallelfold).
 
-The following steps are required in order to run AlphaFold:
+:bookmark_tabs: Please cite our [Arxiv paper](https://arxiv.org/abs/2111.06340) if you used ParallelFold (ParaFold) in you research. 
 
-1.  Install [Docker](https://www.docker.com/).
-    *   Install
-        [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-        for GPU support.
-    *   Setup running
-        [Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
-1.  Download genetic databases (see below).
-1.  Download model parameters (see below).
-1.  Check that AlphaFold will be able to use a GPU by running:
 
-    ```bash
-    docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
-    ```
 
-    The output of this command should show a list of your GPUs. If it doesn't,
-    check if you followed all steps correctly when setting up the
-    [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-    or take a look at the following
-    [NVIDIA Docker issue](https://github.com/NVIDIA/nvidia-docker/issues/1447#issuecomment-801479573).
+**ParallelFold now supports AlphaFold 2.1.1 (maybe we are the first to adapt to multimer version)**
 
-### Genetic databases
+This project is a modified version of DeepMind's [AlphaFold2](https://github.com/deepmind/alphafold) to achieve high-throughput protein structure prediction. 
 
-This step requires `aria2c` to be installed on your machine.
+We have these following modifications to the original AlphaFold pipeline:
 
-AlphaFold needs multiple genetic (sequence) databases to run:
+- Divide **CPU part** (MSA and template searching) and **GPU part** (prediction model)
 
-*   [UniRef90](https://www.uniprot.org/help/uniref),
-*   [MGnify](https://www.ebi.ac.uk/metagenomics/),
-*   [BFD](https://bfd.mmseqs.com/),
-*   [Uniclust30](https://uniclust.mmseqs.com/),
-*   [PDB70](http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/),
-*   [PDB](https://www.rcsb.org/) (structures in the mmCIF format).
 
-We provide a script `scripts/download_all_data.sh` that can be used to download
-and set up all of these databases:
 
-*   Default:
+## How to install 
 
-    ```bash
-    scripts/download_all_data.sh <DOWNLOAD_DIR>
-    ```
+We recommend to install AlphaFold locally, and not using **docker**.
 
-    will download the full databases.
 
-*   With `reduced_dbs`:
 
-    ```bash
-    scripts/download_all_data.sh <DOWNLOAD_DIR> reduced_dbs
-    ```
+### Setting up conda environment
 
-    will download a reduced version of the databases to be used with the
-    `reduced_dbs` preset.
+**Step 1**: Create a conda environment for ParallelFold/AlphaFold
 
-We don't provide exactly the versions used in CASP14 -- see the [note on
-reproducibility](#note-on-reproducibility). Some of the databases are mirrored
-for speed, see [mirrored databases](#mirrored-databases).
+```bash
+# suppose you have miniconda environment on your cluster, or you can install another miniconda or anaconda
+module load miniconda3
+source activate base
 
-:ledger: **Note: The total download size for the full databases is around 415 GB
-and the total size when unzipped is 2.2 TB. Please make sure you have a large
-enough hard drive space, bandwidth and time to download. We recommend using an
-SSD for better genetic search performance.**
-
-This script will also download the model parameter files. Once the script has
-finished, you should have the following directory structure:
-
-```
-$DOWNLOAD_DIR/                             # Total: ~ 2.2 TB (download: 438 GB)
-    bfd/                                   # ~ 1.7 TB (download: 271.6 GB)
-        # 6 files.
-    mgnify/                                # ~ 64 GB (download: 32.9 GB)
-        mgy_clusters_2018_12.fa
-    params/                                # ~ 3.5 GB (download: 3.5 GB)
-        # 5 CASP14 models,
-        # 5 pTM models,
-        # LICENSE,
-        # = 11 files.
-    pdb70/                                 # ~ 56 GB (download: 19.5 GB)
-        # 9 files.
-    pdb_mmcif/                             # ~ 206 GB (download: 46 GB)
-        mmcif_files/
-            # About 180,000 .cif files.
-        obsolete.dat
-    small_bfd/                             # ~ 17 GB (download: 9.6 GB)
-        bfd-first_non_consensus_sequences.fasta
-    uniclust30/                            # ~ 86 GB (download: 24.9 GB)
-        uniclust30_2018_08/
-            # 13 files.
-    uniref90/                              # ~ 58 GB (download: 29.7 GB)
-        uniref90.fasta
+# Create a miniconda environment for ParallelFold/AlphaFold
+conda create -n alphafold python=3.8
+conda activate alphafold
 ```
 
-`bfd/` is only downloaded if you download the full databasees, and `small_bfd/`
-is only downloaded if you download the reduced databases.
+We recommend you to use python 3.8, python version < 3.7 may have missing packages.
 
-### Model parameters
 
-While the AlphaFold code is licensed under the Apache 2.0 License, the AlphaFold
-parameters are made available for non-commercial use only under the terms of the
-CC BY-NC 4.0 license. Please see the [Disclaimer](#license-and-disclaimer) below
-for more detail.
 
-The AlphaFold parameters are available from
-https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar, and
-are downloaded as part of the `scripts/download_all_data.sh` script. This script
-will download parameters for:
+**Step 2**: Install `cudatoolkit` 10.1 and `cudnn`:
 
-*   5 models which were used during CASP14, and were extensively validated for
-    structure prediction quality (see Jumper et al. 2021, Suppl. Methods 1.12
-    for details).
-*   5 pTM models, which were fine-tuned to produce pTM (predicted TM-score) and
-    predicted aligned error values alongside their structure predictions (see
-    Jumper et al. 2021, Suppl. Methods 1.9.7 for details).
-
-## Running AlphaFold
-
-**The simplest way to run AlphaFold is using the provided Docker script.** This
-was tested on Google Cloud with a machine using the `nvidia-gpu-cloud-image`
-with 12 vCPUs, 85 GB of RAM, a 100 GB boot disk, the databases on an additional
-3 TB disk, and an A100 GPU.
-
-1.  Clone this repository and `cd` into it.
-
-    ```bash
-    git clone https://github.com/deepmind/alphafold.git
-    ```
-
-1.  Modify `DOWNLOAD_DIR` in `docker/run_docker.py` to be the path to the
-    directory containing the downloaded databases.
-1.  Build the Docker image:
-
-    ```bash
-    docker build -f docker/Dockerfile -t alphafold .
-    ```
-
-1.  Install the `run_docker.py` dependencies. Note: You may optionally wish to
-    create a
-    [Python Virtual Environment](https://docs.python.org/3/tutorial/venv.html)
-    to prevent conflicts with your system's Python environment.
-
-    ```bash
-    pip3 install -r docker/requirements.txt
-    ```
-
-1.  Run `run_docker.py` pointing to a FASTA file containing the protein sequence
-    for which you wish to predict the structure. If you are predicting the
-    structure of a protein that is already in PDB and you wish to avoid using it
-    as a template, then `max_template_date` must be set to be before the release
-    date of the structure. For example, for the T1050 CASP14 target:
-
-    ```bash
-    python3 docker/run_docker.py --fasta_paths=T1050.fasta --max_template_date=2020-05-14
-    ```
-
-    By default, Alphafold will attempt to use all visible GPU devices. To use a
-    subset, specify a comma-separated list of GPU UUID(s) or index(es) using the
-    `--gpu_devices` flag. See
-    [GPU enumeration](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/user-guide.html#gpu-enumeration)
-    for more details.
-
-1.  You can control AlphaFold speed / quality tradeoff by adding
-    `--preset=reduced_dbs`, `--preset=full_dbs` or `--preset=casp14` to the run
-    command. We provide the following presets:
-
-    *   **reduced_dbs**: This preset is optimized for speed and lower hardware
-        requirements. It runs with a reduced version of the BFD database and
-        with no ensembling. It requires 8 CPU cores (vCPUs), 8 GB of RAM, and
-        600 GB of disk space.
-    *   **full_dbs**: The model in this preset is 8 times faster than the
-        `casp14` preset with a very minor quality drop (-0.1 average GDT drop on
-        CASP14 domains). It runs with all genetic databases and with no
-        ensembling.
-    *   **casp14**: This preset uses the same settings as were used in CASP14.
-        It runs with all genetic databases and with 8 ensemblings.
-
-    Running the command above with the `casp14` preset would look like this:
-
-    ```bash
-    python3 docker/run_docker.py --fasta_paths=T1050.fasta --max_template_date=2020-05-14 --preset=casp14
-    ```
-
-### AlphaFold output
-
-The outputs will be in a subfolder of `output_dir` in `run_docker.py`. They
-include the computed MSAs, unrelaxed structures, relaxed structures, ranked
-structures, raw model outputs, prediction metadata, and section timings. The
-`output_dir` directory will have the following structure:
-
-```
-<target_name>/
-    features.pkl
-    ranked_{0,1,2,3,4}.pdb
-    ranking_debug.json
-    relaxed_model_{1,2,3,4,5}.pdb
-    result_model_{1,2,3,4,5}.pkl
-    timings.json
-    unrelaxed_model_{1,2,3,4,5}.pdb
-    msas/
-        bfd_uniclust_hits.a3m
-        mgnify_hits.sto
-        uniref90_hits.sto
+```bash
+conda install cudatoolkit=10.1 cudnn
 ```
 
-The contents of each output file are as follows:
+> Why use cudatoolkit 10.1:
+>
+> - cudatoolkit supports TensorFlow 2.3.0, while sometimes TensorFlow can't find GPU when using cudatoolkit 10.2
 
-*   `features.pkl` – A `pickle` file containing the input feature NumPy arrays
-    used by the models to produce the structures.
-*   `unrelaxed_model_*.pdb` – A PDB format text file containing the predicted
-    structure, exactly as outputted by the model.
-*   `relaxed_model_*.pdb` – A PDB format text file containing the predicted
-    structure, after performing an Amber relaxation procedure on the unrelaxed
-    structure prediction (see Jumper et al. 2021, Suppl. Methods 1.8.6 for
-    details).
-*   `ranked_*.pdb` – A PDB format text file containing the relaxed predicted
-    structures, after reordering by model confidence. Here `ranked_0.pdb` should
-    contain the prediction with the highest confidence, and `ranked_4.pdb` the
-    prediction with the lowest confidence. To rank model confidence, we use
-    predicted LDDT (pLDDT) scores (see Jumper et al. 2021, Suppl. Methods 1.9.6
-    for details).
-*   `ranking_debug.json` – A JSON format text file containing the pLDDT values
-    used to perform the model ranking, and a mapping back to the original model
-    names.
-*   `timings.json` – A JSON format text file containing the times taken to run
-    each section of the AlphaFold pipeline.
-*   `msas/` - A directory containing the files describing the various genetic
-    tool hits that were used to construct the input MSA.
-*   `result_model_*.pkl` – A `pickle` file containing a nested dictionary of the
-    various NumPy arrays directly produced by the model. In addition to the
-    output of the structure module, this includes auxiliary outputs such as:
+- cudnn version 7.6.5
 
-    *   Distograms (`distogram/logits` contains a NumPy array of shape [N_res,
-        N_res, N_bins] and `distogram/bin_edges` contains the definition of the
-        bins).
-    *   Per-residue pLDDT scores (`plddt` contains a NumPy array of shape
-        [N_res] with the range of possible values from `0` to `100`, where `100`
-        means most confident). This can serve to identify sequence regions
-        predicted with high confidence or as an overall per-target confidence
-        score when averaged across residues.
-    *   Present only if using pTM models: predicted TM-score (`ptm` field
-        contains a scalar). As a predictor of a global superposition metric,
-        this score is designed to also assess whether the model is confident in
-        the overall domain packing.
-    *   Present only if using pTM models: predicted pairwise aligned errors
-        (`predicted_aligned_error` contains a NumPy array of shape [N_res,
-        N_res] with the range of possible values from `0` to
-        `max_predicted_aligned_error`, where `0` means most confident). This can
-        serve for a visualisation of domain packing confidence within the
-        structure.
+- For higher version of CUDA driver, you can install cudatoolkit 11.2 and TensorFlow 2.5.0 instead
 
-The pLDDT confidence measure is stored in the B-factor field of the output PDB
-files (although unlike a B-factor, higher pLDDT is better, so care must be taken
-when using for tasks such as molecular replacement).
 
-This code has been tested to match mean top-1 accuracy on a CASP14 test set with
-pLDDT ranking over 5 model predictions (some CASP targets were run with earlier
-versions of AlphaFold and some had manual interventions; see our forthcoming
-publication for details). Some targets such as T1064 may also have high
-individual run variance over random seeds.
 
-## Inferencing many proteins
+**Step 3**: Install tensorflow 2.3.0 by pip
 
-The provided inference script is optimized for predicting the structure of a
-single protein, and it will compile the neural network to be specialized to
-exactly the size of the sequence, MSA, and templates. For large proteins, the
-compile time is a negligible fraction of the runtime, but it may become more
-significant for small proteins or if the multi-sequence alignments are already
-precomputed. In the bulk inference case, it may make sense to use our
-`make_fixed_size` function to pad the inputs to a uniform size, thereby reducing
-the number of compilations required.
-
-We do not provide a bulk inference script, but it should be straightforward to
-develop on top of the `RunModel.predict` method with a parallel system for
-precomputing multi-sequence alignments. Alternatively, this script can be run
-repeatedly with only moderate overhead.
-
-## Note on reproducibility
-
-AlphaFold's output for a small number of proteins has high inter-run variance,
-and may be affected by changes in the input data. The CASP14 target T1064 is a
-notable example; the large number of SARS-CoV-2-related sequences recently
-deposited changes its MSA significantly. This variability is somewhat mitigated
-by the model selection process; running 5 models and taking the most confident.
-
-To reproduce the results of our CASP14 system as closely as possible you must
-use the same database versions we used in CASP. These may not match the default
-versions downloaded by our scripts.
-
-For genetics:
-
-*   UniRef90:
-    [v2020_01](https://ftp.uniprot.org/pub/databases/uniprot/previous_releases/release-2020_01/uniref/)
-*   MGnify:
-    [v2018_12](http://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2018_12/)
-*   Uniclust30: [v2018_08](http://wwwuser.gwdg.de/~compbiol/uniclust/2018_08/)
-*   BFD: [only version available](https://bfd.mmseqs.com/)
-
-For templates:
-
-*   PDB: (downloaded 2020-05-14)
-*   PDB70: [2020-05-13](http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/old-releases/pdb70_from_mmcif_200513.tar.gz)
-
-An alternative for templates is to use the latest PDB and PDB70, but pass the
-flag `--max_template_date=2020-05-14`, which restricts templates only to
-structures that were available at the start of CASP14.
-
-## Citing this work
-
-If you use the code or data in this package, please cite:
-
-```bibtex
-@Article{AlphaFold2021,
-  author  = {Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and Figurnov, Michael and Ronneberger, Olaf and Tunyasuvunakool, Kathryn and Bates, Russ and {\v{Z}}{\'\i}dek, Augustin and Potapenko, Anna and Bridgland, Alex and Meyer, Clemens and Kohl, Simon A A and Ballard, Andrew J and Cowie, Andrew and Romera-Paredes, Bernardino and Nikolov, Stanislav and Jain, Rishub and Adler, Jonas and Back, Trevor and Petersen, Stig and Reiman, David and Clancy, Ellen and Zielinski, Michal and Steinegger, Martin and Pacholska, Michalina and Berghammer, Tamas and Bodenstein, Sebastian and Silver, David and Vinyals, Oriol and Senior, Andrew W and Kavukcuoglu, Koray and Kohli, Pushmeet and Hassabis, Demis},
-  journal = {Nature},
-  title   = {Highly accurate protein structure prediction with {AlphaFold}},
-  year    = {2021},
-  volume  = {596},
-  number  = {7873},
-  pages   = {583--589},
-  doi     = {10.1038/s41586-021-03819-2}
-}
+```bash
+pip install tensorflow==2.3.0
 ```
 
-## Community contributions
 
-Colab notebooks provided by the community (please note that these notebooks may
-vary from our full AlphaFold system and we did not validate their accuracy):
 
-*   The [ColabFold AlphaFold2 notebook](https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb)
-    by Martin Steinegger, Sergey Ovchinnikov and Milot Mirdita, which uses an
-    API hosted at the Södinglab based on the MMseqs2 server [(Mirdita et al.
-    2019, Bioinformatics)](https://academic.oup.com/bioinformatics/article/35/16/2856/5280135)
-    for the multiple sequence alignment creation.
+**Step 4**: Install other packages with pip and conda
 
-## Acknowledgements
+```bash
+# Using conda
+conda install -c conda-forge openmm=7.5.1 pdbfixer=1.7
+conda install -c bioconda hmmer=3.3.2 hhsuite=3.3.0 kalign2=2.04
+conda install pandas=1.3.4
 
-AlphaFold communicates with and/or references the following separate libraries
-and packages:
+# Using pip
+pip install biopython==1.79 chex==0.0.7 dm-haiku==0.0.4 dm-tree==0.1.6 immutabledict==2.0.0 jax==0.2.14 ml-collections==0.1.0
+pip install --upgrade jax jaxlib==0.1.69+cuda101 -f https://storage.googleapis.com/jax-releases/jax_releases.html
+```
 
-*   [Abseil](https://github.com/abseil/abseil-py)
-*   [Biopython](https://biopython.org)
-*   [Chex](https://github.com/deepmind/chex)
-*   [Colab](https://research.google.com/colaboratory/)
-*   [Docker](https://www.docker.com)
-*   [HH Suite](https://github.com/soedinglab/hh-suite)
-*   [HMMER Suite](http://eddylab.org/software/hmmer)
-*   [Haiku](https://github.com/deepmind/dm-haiku)
-*   [Immutabledict](https://github.com/corenting/immutabledict)
-*   [JAX](https://github.com/google/jax/)
-*   [Kalign](https://msa.sbc.su.se/cgi-bin/msa.cgi)
-*   [matplotlib](https://matplotlib.org/)
-*   [ML Collections](https://github.com/google/ml_collections)
-*   [NumPy](https://numpy.org)
-*   [OpenMM](https://github.com/openmm/openmm)
-*   [OpenStructure](https://openstructure.org)
-*   [pymol3d](https://github.com/avirshup/py3dmol)
-*   [SciPy](https://scipy.org)
-*   [Sonnet](https://github.com/deepmind/sonnet)
-*   [TensorFlow](https://github.com/tensorflow/tensorflow)
-*   [Tree](https://github.com/deepmind/tree)
-*   [tqdm](https://github.com/tqdm/tqdm)
+>  jax installation reference: https://github.com/google/jax
+>
+>  - For CUDA 11.1, 11.2, or 11.3, use `cuda111`.
+>  - For CUDA 11.0, use `cuda110`.
+>  - For CUDA 10.2, use `cuda102`.
+>  - For CUDA 10.1, use `cuda101`.
+>
+>  In newer version of JAX (after 0.1.70), it will not support CUDA 10.1 and lower version. So here we downgrade jaxlib to 0.1.69.
 
-We thank all their contributors and maintainers!
+Here you should used cuda 10.1 when you use cuda toolkit 10.1
 
-## License and Disclaimer
 
-This is not an officially supported Google product.
 
-Copyright 2021 DeepMind Technologies Limited.
+### Clone This Repo
 
-### AlphaFold Code License
+```bash
+git clone https://github.com/Zuricho/ParallelFold.git
+alphafold_path="/path/to/alphafold/git/repo"
+```
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at https://www.apache.org/licenses/LICENSE-2.0.
+give the executive permission for sh files:
 
-Unless required by applicable law or agreed to in writing, software distributed
-under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
+```bash
+chmod +x run_feature.sh
+chmod +x run_alphafold.sh
+```
 
-### Model Parameters License
 
-The AlphaFold parameters are made available for non-commercial use only, under
-the terms of the Creative Commons Attribution-NonCommercial 4.0 International
-(CC BY-NC 4.0) license. You can find details at:
-https://creativecommons.org/licenses/by-nc/4.0/legalcode
 
-### Third-party software
+### Final Steps
 
-Use of the third-party software, libraries or code referred to in the
-[Acknowledgements](#acknowledgements) section above may be governed by separate
-terms and conditions or license provisions. Your use of the third-party
-software, libraries or code is subject to any such terms and you should check
-that you can comply with any applicable restrictions or terms and conditions
-before use.
+**[Not Necessary] Download chemical properties to the common folder**
 
-### Mirrored Databases
+You need to check if you have the `stereo_chemical_props.txt` file in `alphafold/alphafold/common/ `folder, if you don't have it, you need to download this file:
 
-The following databases have been mirrored by DeepMind, and are available with reference to the following:
+```
+wget -q -P alphafold/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+```
 
-*   [BFD](https://bfd.mmseqs.com/) (unmodified), by Steinegger M. and Söding J., available under a [Creative Commons Attribution-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/).
+**Apply OpenMM patch**
 
-*   [BFD](https://bfd.mmseqs.com/) (modified), by Steinegger M. and Söding J., modified by DeepMind, available under a [Creative Commons Attribution-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/). See the Methods section of the [AlphaFold proteome paper](https://www.nature.com/articles/s41586-021-03828-1) for details.
+```bash
+# This is you path to your alphafold folder
+alphafold_path="/path/to/alphafold/git/repo"
+cd ~/.conda/envs/alphafold/lib/python3.8/site-packages/
+patch -p0 < $alphafold_path/docker/openmm.patch
+```
 
-*   [Uniclust30: v2018_08](http://wwwuser.gwdg.de/~compbiol/uniclust/2018_08/) (unmodified), by Mirdita M. et al., available under a [Creative Commons Attribution-ShareAlike 4.0 International License](http://creativecommons.org/licenses/by-sa/4.0/).
+**Local cuda**
 
-*   [MGnify: v2018_12](http://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/current_release/README.txt) (unmodified), by Mitchell AL et al., available free of all copyright restrictions and made fully and freely available for both non-commercial and commercial use under [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/).
+Based on our test, you need to use local cuda if you install cudatoolkit=10.1, you can skip this step if you are using cudatoolkit 11
+
+Their might be some available modules: `cuda/10.1.243-gcc-8.3.0`, `cuda/10.2.89-gcc-8.3.0`
+
+
+
+### References
+
+- [Official version](https://github.com/deepmind/alphafold) from DeepMind with docker. 
+- [None docker versions](https://github.com/kalininalab/alphafold_non_docker) install AlphaFold without docker. 
+- [My none docker guide](https://github.com/Zuricho/AlphaFold_local) adjusted to different cuda versions (cuda driver >= 10.1) 
+
+
+
+## Some detail information of modified files
+
+4 files:
+
+- `run_alphafold.py`: modified version of original `run_alphafold.py`, it skips featuring steps when there exists `feature.pkl` in output folder
+- `run_alphaold.sh`: bash script to run `run_alphafold.py`
+- `run_feature.py`: modified version of original `run_alphafold.py`, it exit python process after finished writing `feature.pkl`
+- `run_feature.sh`: bash scripts to run `run_feature.py`
+- `run_figure`: this file can help you make figure for your system
+
+
+
+## How to run
+
+First, you need CPUs to run `run_feature.sh`:
+
+```bash
+./run_feature.sh -d data -o output -m model_1 -f input/test3.fasta -t 2021-07-27
+```
+
+>  8 CPUs is enough, according to my test, more CPUs won't help with speed.
+
+Featuring step will output the `feature.pkl`  and MSA folder in your output folder: `./output/JOBNAME/`
+
+PS: Here we put input files in an `input` folder to better organize files.
+
+
+
+Second, you can run `run_alphafold.sh` using GPU:
+
+```bash
+./run_alphafold.sh -d data -o output -m model_1,model_2,model_3,model_4,model_5 -f input/test.fasta -t 2021-07-27
+```
+
+If you have successfully output `feature.pkl`, you can have a very fast featuring step
+
+
+
+Finally, you can run `run_figure.py` to visualize your result:
+
+```
+python run_figure.py [SystemName]
+```
+
+This python file will create a figure folder in your output folder.
+
+Notice: `run_figure.py` need a local conda environment with matplotlib, pymol and numpy.
+
+
+
+## Functions
+
+You can using some flags to change prediction model for ParallelFold:
+
+`-x`: Skip AMBER refinement
+
+`-b`: Using benchmark mode - running JAX model for twice, and the second run can used for evaluate running time
+
+**Some more functions are under development.**
+
+
+
+~~I have also upload my scripts in SJTU HPC (using slurm): `sub_alphafold.slurm` and `sub_feature.slurm`~~
+
+
+
+## What is this for
+
+ParallelFold can help you accelerate AlphaFold when you want to predict multiple sequences. After dividing the CPU part and GPU part, users can finish feature step by multiple processors.
+
+Using ParallelFold, you can run AlphaFold 2~3 times faster than DeepMind's procedure. 
+
+
+
+## Other Files
+
+~~I have also modified `run_feature.sh` and `run_alphafold.sh` to make them find the alphafold folder, which means that you can use it in another folder. But you need to change `alphafold/common/restrains.py`. In this file it use a relative path to find the restraint file, you need to change it to absolute path.~~
+
+
+
+If you have any question, please send your problem in issues
+
+
+
+
+
+
+
